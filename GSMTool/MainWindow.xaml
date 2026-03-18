@@ -1,35 +1,63 @@
 ﻿<Window x:Class="GSMTool.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Web Scraper Tool" Height="450" Width="800">
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="Web Scraper Tool"
+        Height="500"
+        Width="900">
 
     <Grid Margin="10">
 
+        <!-- ROWS -->
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- URL textbox -->
-        <TextBox x:Name="UrlTextBox"
-                 Height="30"
-                 Margin="0,0,0,10"
-                 Text="https://example.com"/>
+        <!-- TOP PANEL -->
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
 
-        <!-- Button -->
-        <Button Grid.Row="1"
-                Height="30"
-                Content="Load HTML"
-                Click="LoadHtml_Click"
-                Margin="0,0,0,10"/>
+            <TextBox x:Name="UrlTextBox"
+                     Width="660"
+                     Height="30"
+                     Text="https://example.com"
+                     Margin="0,0,10,0"/>
 
-        <!-- Output -->
-        <TextBox Grid.Row="2"
-                 x:Name="OutputTextBox"
-                 AcceptsReturn="True"
-                 VerticalScrollBarVisibility="Auto"
-                 TextWrapping="Wrap"/>
+            <Button Content="GET"
+                    Width="90"
+                    Height="30"
+                    Margin="0,0,20,0"
+                    Click="LoadHtml_Click"/>
+
+            <Button Content="Refresh"
+                    Width="90"
+                    Height="30"
+                    Click="Refresh_Click"/>
+
+        </StackPanel>
+
+
+        <!-- MAIN AREA -->
+        <Grid Grid.Row="1">
+
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- LEFT -->
+            <wv2:WebView2 x:Name="BrowserBox"
+                  Grid.Column="0"/>
+
+            <!-- RIGHT -->
+            <TextBox x:Name="OutputDataBox"
+             Grid.Column="2"
+             AcceptsReturn="True"
+             VerticalScrollBarVisibility="Auto"
+             TextWrapping="Wrap"/>
+
+        </Grid>
 
     </Grid>
 
