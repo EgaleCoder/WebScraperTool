@@ -1,131 +1,127 @@
-﻿using System;
+using System;
 using System.Net.Http;
 using System.Threading.Tasks;
+using GSMTool.Utils;
 using HtmlAgilityPack;
 
 namespace GSMTool.Scraper
 {
     public class HtmlScraper
     {
-        private HttpClient _httpClient;
+        private readonly HttpClient _httpClient;
 
         public HtmlScraper()
         {
             _httpClient = new HttpClient();
-
+            _httpClient.Timeout = TimeSpan.FromSeconds(30);
             _httpClient.DefaultRequestHeaders.Add(
                "User-Agent",
                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
                "AppleWebKit/537.36 (KHTML, like Gecko) " +
-               "Chrome/141.0.0.0 Safari/537.36");
+               "Chrome/124.0.0.0 Safari/537.36");
+            _httpClient.DefaultRequestHeaders.Add(
+               "Accept-Language", "en-US,en;q=0.9");
         }
 
-        /* To Load HTML */
+        /* ──────────────────────────────────────────────────────────
+         * Fetch URL once, then extract BOTH the rendered HTML snippet
+         * and the clean plain-text from the same div[@id].
+         * Returns (null, errorMessage) when the div is not found.
+         * ────────────────────────────────────────────────────────── */
+        public async Task<(string? divHtml, string text)> GetDivHtmlAndText(
+            string url, string id)
+        {
+            try
+            {
+                var rawHtml = await _httpClient.GetStringAsync(url);
+
+                var doc = new HtmlDocument();
+                doc.LoadHtml(rawHtml);
+
+                var node = doc.DocumentNode.SelectSingleNode($"//div[@id='{id}']");
+
+                if (node == null)
+                    return (null, $"Element <div id=\"{id}\"> was not found on the page.");
+
+                // ── Build styled preview HTML ──────────────────────
+                var head = doc.DocumentNode.SelectSingleNode("//head");
+                string headHtml = head?.InnerHtml ?? string.Empty;
+                string baseTag = $"<base href='{url}' />";
+
+                // Style injection: hide everything except the target div and
+                // style the page cleanly — without touching the DOM so the page's
+                // own expand/collapse event listeners remain attached and work.
+                string script = $@"
+<style>
+  body > *:not(#{id}) {{ display: none !important; }}
+  html, body {{
+      background: #fff !important;
+      font-family: Arial, sans-serif !important;
+      padding: 12px !important;
+      margin: 0 !important;
+    }}
+  #{id} {{ display: block !important; }}
+</style>";
+
+                string divHtml =
+                    "<html><head>" +
+                    baseTag +
+                    headHtml +
+                    "</head><body>" +
+                    node.OuterHtml +
+                    script +
+                    "</body></html>";
+
+                // ── Extract clean plain text via TextHelper (Utils) ──
+                string text = TextHelper.ExtractCleanText(node);
+
+                return (divHtml, text);
+            }
+            catch (TaskCanceledException)
+            {
+                return (null, "Request timed out. The server took too long to respond.");
+            }
+            catch (HttpRequestException ex)
+            {
+                return (null, $"HTTP error: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return (null, $"Unexpected error: {ex.Message}");
+            }
+        }
+
+        /* ──────────────────────────────────────────────────────────
+         * Load raw HTML string for a URL (simple fetch)
+         * ────────────────────────────────────────────────────────── */
         public async Task<string> LoadHtml(string url)
         {
             try
             {
-                var html = await _httpClient.GetStringAsync(url);
-                return html;
+                return await _httpClient.GetStringAsync(url);
             }
             catch (Exception ex)
             {
-                return ex.Message;
+                return $"Error: {ex.Message}";
             }
         }
 
-        /* To Get Title */
+        /* ──────────────────────────────────────────────────────────
+         * Get the page <title>
+         * ────────────────────────────────────────────────────────── */
         public async Task<string> GetTitle(string url)
         {
             try
             {
                 var html = await _httpClient.GetStringAsync(url);
-
                 var doc = new HtmlDocument();
                 doc.LoadHtml(html);
-
                 var titleNode = doc.DocumentNode.SelectSingleNode("//title");
-
-                if (titleNode != null)
-                {
-                    return titleNode.InnerText;
-                }
-
-                return "Title not found";
+                return titleNode?.InnerText?.Trim() ?? "Title not found";
             }
             catch (Exception ex)
             {
-                return ex.Message;
-            }
-        }
-
-        /* To Get Div Text (id) */
-        public async Task<string> GetDivText(string url, string id)
-        {
-            try
-            {
-                var html = await _httpClient.GetStringAsync(url);
-
-                var doc = new HtmlDocument();
-                doc.LoadHtml(html);
-
-                var node = doc.DocumentNode.SelectSingleNode($"//div[@id='{id}']");
-
-                if (node != null)
-                {
-                    return node.InnerText;
-                }
-
-                return "Div not found";
-            }
-            catch (Exception ex)
-            {
-                return ex.Message;
-            }
-        }
-
-        /* To Get Div Web Page */
-        public async Task<string> GetDivHtml(string url, string id)
-        {
-            try
-            {
-
-
-                var html = await _httpClient.GetStringAsync(url);
-
-                var doc = new HtmlDocument();
-                doc.LoadHtml(html);
-
-                // head
-                var head = doc.DocumentNode.SelectSingleNode("//head");
-
-                // div by id
-                var node = doc.DocumentNode.SelectSingleNode($"//div[@id='{id}']");
-
-                if (node != null)
-                {
-                    string baseTag = $"<base href='{url}' />";
-
-                    string headHtml = head != null
-                    ? head.InnerHtml
-                    : "";
-
-                    string newHtml =
-                   "<html><head>" +
-                    baseTag +
-                    headHtml +
-                    "</head><body>" +
-                     node.OuterHtml +
-                    "</body></html>";
-
-                    return newHtml;
-                }
-
-                return "Div not found";
-            }
-            catch (Exception ex)
-            {
-                return ex.Message;
+                return $"Error: {ex.Message}";
             }
         }
     }
