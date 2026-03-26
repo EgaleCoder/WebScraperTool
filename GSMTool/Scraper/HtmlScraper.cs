@@ -48,28 +48,34 @@ namespace GSMTool.Scraper
                 string headHtml = head?.InnerHtml ?? string.Empty;
                 string baseTag = $"<base href='{url}' />";
 
-                // Style injection: hide everything except the target div and
-                // style the page cleanly — without touching the DOM so the page's
-                // own expand/collapse event listeners remain attached and work.
-                string script = $@"
-<style>
-  body > *:not(#{id}) {{ display: none !important; }}
-  html, body {{
-      background: #fff !important;
-      font-family: Arial, sans-serif !important;
-      padding: 12px !important;
-      margin: 0 !important;
-    }}
-  #{id} {{ display: block !important; }}
-</style>";
+                // ── Include all external scripts (for better rendering) ──
+
+                var scriptNodes = doc.DocumentNode.SelectNodes("//script");
+
+                string allScripts = "";
+                if (scriptNodes != null)
+                {
+                    foreach (var script in scriptNodes)
+                    {
+                        string src = script.GetAttributeValue("src", null);
+                        if (src != null)
+                        {
+                            // prepend https if needed
+                            if (src.StartsWith("//"))
+                                src = "https:" + src;
+
+                            allScripts += $"<script src='{src}'></script>\n";
+                        }
+                    }
+                }
 
                 string divHtml =
                     "<html><head>" +
                     baseTag +
                     headHtml +
+                    allScripts +
                     "</head><body>" +
                     node.OuterHtml +
-                    script +
                     "</body></html>";
 
                 // ── Extract clean plain text via TextHelper (Utils) ──
