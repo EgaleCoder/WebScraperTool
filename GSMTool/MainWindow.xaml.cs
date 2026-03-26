@@ -149,8 +149,9 @@ namespace GSMTool
 
             try
             {
+                // ── 1. Fetch the rendered HTML for the WebView preview ──
                 _isScraping = true;
-                var (divHtml, text) = await _scraper.GetDivHtmlAndText(url, SpecsDivId);
+                var (divHtml, _) = await _scraper.GetDivHtmlAndText(url, SpecsDivId);
                 _isScraping = false;
 
                 if (divHtml == null)
@@ -158,7 +159,6 @@ namespace GSMTool
                     UIHelper.SetStatus(StatusBar, StatusText,
                         "Could not find the specs section. Is this a valid GSMArena device page?",
                         isError: true);
-                    OutputDataBox.Text = text ?? string.Empty;
                     return;
                 }
 
@@ -167,9 +167,20 @@ namespace GSMTool
                 BrowserBox.Visibility = Visibility.Visible;
                 BrowserBox.NavigateToString(divHtml);
 
-                OutputDataBox.Text = text ?? string.Empty;
-                UIHelper.SetStatus(StatusBar, StatusText,
-                    $"Specs loaded successfully from {url}", isError: false);
+                // ── 2. Extract specs as JSON and display in the text box ──
+                var (json, message) = await _scraper.GetSpecsJson(url);
+
+                if (json != null)
+                {
+                    OutputDataBox.Text = json;
+                    UIHelper.SetStatus(StatusBar, StatusText,
+                        $"{message} — {url}", isError: false);
+                }
+                else
+                {
+                    OutputDataBox.Text = message;
+                    UIHelper.SetStatus(StatusBar, StatusText, message, isError: true);
+                }
             }
             catch (Exception ex)
             {

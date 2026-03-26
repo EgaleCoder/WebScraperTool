@@ -130,5 +130,45 @@ namespace GSMTool.Scraper
                 return $"Error: {ex.Message}";
             }
         }
+
+        /* ──────────────────────────────────────────────────────────
+         * Fetch the page, extract the specs-list table and return it
+         * as a formatted JSON string.
+         * Returns (null, errorMessage) on failure.
+         * ────────────────────────────────────────────────────────── */
+        public async Task<(string? json, string message)> GetSpecsJson(string url)
+        {
+            try
+            {
+                var rawHtml = await _httpClient.GetStringAsync(url);
+
+                var doc = new HtmlDocument();
+                doc.LoadHtml(rawHtml);
+
+                // Use the page <title> as the device name (strip " - Full phone specifications" suffix)
+                var titleNode = doc.DocumentNode.SelectSingleNode("//title");
+                string? deviceName = titleNode?.InnerText?.Trim();
+                if (!string.IsNullOrEmpty(deviceName))
+                {
+                    int dashIdx = deviceName.LastIndexOf(" - ", StringComparison.Ordinal);
+                    if (dashIdx > 0)
+                        deviceName = deviceName.Substring(0, dashIdx).Trim();
+                }
+
+                return SpecsExtractor.ExtractToJson(doc, url, deviceName);
+            }
+            catch (TaskCanceledException)
+            {
+                return (null, "Request timed out. The server took too long to respond.");
+            }
+            catch (HttpRequestException ex)
+            {
+                return (null, $"HTTP error: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return (null, $"Unexpected error: {ex.Message}");
+            }
+        }
     }
 }
